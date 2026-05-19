@@ -1,0 +1,23 @@
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: mysql-credentials
+  namespace: sock-shop-hardened
+spec:
+  refreshInterval: 5m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: mysql-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: MYSQL_ROOT_PASSWORD
+      remoteRef:
+        key: sock-shop-hardened/mysql
+        property: root_password
+    - secretKey: MYSQL_DATABASE
+      remoteRef:
+        key: sock-shop-hardened/mysql
+        property: database

@@ -5,7 +5,7 @@ metadata:
   name: catalogue
   labels:
     name: catalogue
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: catalogue
     spec:
+      serviceAccountName: catalogue
       containers:
       - name: catalogue
         image: weaveworksdemos/catalogue:0.3.5
@@ -52,5 +53,14 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - mountPath: /run/spire/sockets
+          name: spire-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

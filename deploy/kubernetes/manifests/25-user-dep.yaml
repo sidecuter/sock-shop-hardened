@@ -5,7 +5,7 @@ metadata:
   name: user
   labels:
     name: user
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: user
     spec:
+      serviceAccountName: user
       containers:
       - name: user
         image: weaveworksdemos/user:0.4.7
@@ -52,5 +53,14 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

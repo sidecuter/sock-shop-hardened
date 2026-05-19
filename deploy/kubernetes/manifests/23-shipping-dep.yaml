@@ -5,7 +5,7 @@ metadata:
   name: shipping
   labels:
     name: shipping
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: shipping
     spec:
+      serviceAccountName: shipping
       containers:
       - name: shipping
         image: weaveworksdemos/shipping:0.4.8
@@ -45,7 +46,14 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
       volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
         - name: tmp-volume
           emptyDir:
             medium: Memory

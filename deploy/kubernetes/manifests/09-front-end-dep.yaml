@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: front-end
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -14,9 +14,10 @@ spec:
       labels:
         name: front-end
     spec:
+      serviceAccountName: front-end
       containers:
       - name: front-end
-        image: weaveworksdemos/front-end:0.3.12
+        image: ghcr.io/sidecuter/front-end:latest
         resources:
           limits:
             cpu: 300m
@@ -42,11 +43,20 @@ spec:
             port: 8079
           initialDelaySeconds: 300
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
         readinessProbe:
           httpGet:
             path: /
             port: 8079
           initialDelaySeconds: 30
           periodSeconds: 3
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

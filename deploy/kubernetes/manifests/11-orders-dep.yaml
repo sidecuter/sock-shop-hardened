@@ -5,7 +5,7 @@ metadata:
   name: orders
   labels:
     name: orders
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: orders
     spec:
+      serviceAccountName: orders
       containers:
       - name: orders
         image: weaveworksdemos/orders:0.4.7
@@ -43,9 +44,16 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

@@ -1,0 +1,62 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root-sockshop
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+  - name: check-runAsNonRoot
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [sock-shop-hardened]
+    exclude:
+      any:
+      - resources:
+          names:
+            - "carts-db-*"
+            - "catalogue-db-*"
+            - "orders-db-*"
+            - "user-db-*"
+            - "session-db-*"
+            - "rabbitmq-*"
+            - "queue-master-*"
+    validate:
+      message: "Containers must run as non-root"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              runAsNonRoot: true
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs-sockshop
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+  - name: check-readonly-rootfs
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [sock-shop-hardened]
+    exclude:
+      any:
+      - resources:
+          names:
+            - "catalogue-db-*"
+            - "rabbitmq-*"
+            - "queue-master-*"
+    validate:
+      message: "Root filesystem must be read-only"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              readOnlyRootFilesystem: true

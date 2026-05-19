@@ -1,0 +1,62 @@
+customRules:
+  custom-rules.yaml: |-
+
+    - rule: Shell spawned in sock-shop container
+      desc: Detect shell spawned inside sock-shop-hardened containers
+      condition: >
+        evt.type in (execve, execveat) and
+        container.id != host and
+        proc.name in (bash, sh, zsh, ksh, csh) and
+        k8s.ns.name = "sock-shop-hardened"
+      output: >
+        Shell spawned in sock-shop container (user=%user.name 
+        container=%container.id image=%container.image 
+        pod=%k8s.pod.name namespace=%k8s.ns.name)
+      priority: WARNING
+      tags: [shell, container, sock-shop]
+
+    - rule: Write to sensitive directory in sock-shop
+      desc: Detect write to /etc, /root, /proc in sock-shop containers
+      condition: >
+        evt.type in (open, openat, openat2) and
+        container.id != host and
+        fd.name startswith "/etc/" and
+        evt.arg.flags contains "O_WRONLY" and
+        k8s.ns.name = "sock-shop-hardened"
+      output: >
+        Write to sensitive directory in sock-shop (user=%user.name 
+        file=%fd.name pod=%k8s.pod.name)
+      priority: ERROR
+      tags: [filesystem, sock-shop]
+
+    - rule: Outbound connection from sock-shop on unusual port
+      desc: Detect outbound connections to external IPs on non-standard ports
+      condition: >
+        evt.type = connect and
+        container.id != host and
+        fd.typechar = 4 and
+        fd.l4proto = tcp and
+        not fd.snet in (rfc_1918_addresses) and
+        fd.sport != 80 and fd.sport != 443 and fd.sport != 5672 and fd.sport != 27017 and fd.sport != 3306 and
+        k8s.ns.name = "sock-shop-hardened"
+      output: >
+        Suspicious outbound connection from sock-shop (user=%user.name 
+        connection=%fd.name remote=%fd.sip:%fd.sport pod=%k8s.pod.name)
+      priority: WARNING
+      tags: [network, exfiltration, sock-shop]
+
+    - rule: Sensitive mount detected in sock-shop
+      desc: Detect mounting of host paths like /, /etc, /proc, /sys
+      condition: >
+        evt.type = mount and
+        container.id != host and
+        (evt.arg.target startswith "/etc" or 
+        evt.arg.target startswith "/proc" or 
+        evt.arg.target startswith "/sys" or
+        evt.arg.target = "/") and
+        k8s.ns.name = "sock-shop-hardened"
+      output: >
+        Sensitive mount detected in sock-shop (user=%user.name 
+        target=%evt.arg.target pod=%k8s.pod.name)
+      priority: CRITICAL
+      tags: [privilege-escalation, sock-shop]

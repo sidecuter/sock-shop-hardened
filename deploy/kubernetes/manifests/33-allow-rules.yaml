@@ -1,0 +1,320 @@
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-external-to-frontend
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: front-end
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+        paths: ["/*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-catalogue
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: catalogue
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+          "/catalogue", "/catalogue*",
+          "/catalogue/", "/catalogue/*",
+          "/products*", "/products/*",
+          "/health", "/health/*"
+        ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-user
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "OPTIONS"]
+        paths: ["/customers*", "/customer*", "/addresses*", "/address*", "/cards*", "/card*", "/health*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-user
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: [
+            "/users", "/users/", "/users/*",
+            "/user", "/user/", "/user/*",
+            "/addresses", "/addresses/", "/addresses/*",
+            "/address", "/address/", "/address/*",
+            "/cards", "/cards/", "/cards/*",
+            "/card", "/card/", "/card/*",
+            "/login", "/login/",
+            "/register", "/register/",
+            "/health", "/health/*",
+            "/customers*", "/customer*",
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-carts
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: [
+            "/carts", "/carts/", "/carts/*",
+            "/cart", "/cart/", "/cart/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-orders
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: orders
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "OPTIONS"]
+        paths: [
+            "/orders", "/orders/", "/orders/*",
+            "/order", "/order/", "/order/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-payment
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: payment
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+            "/payment", "/payment*", "/payment/",
+            "/payment/*", "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-shipping
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: shipping
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+            "/shipping", "/shipping/", "/shipping/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-carts
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "OPTIONS"]
+        paths: [
+            "/carts", "/carts/", "/carts/*",
+            "/cart", "/cart/", "/cart/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-catalogue-to-catalogue-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: catalogue-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/catalogue"]
+    to:
+    - operation:
+        ports: ["3306"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-carts-to-carts-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/carts"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-user-to-user-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/user"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-orders-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: orders-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-session-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: session-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        ports: ["6379"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-queue-master-to-rabbitmq
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: rabbitmq
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: [
+            "cluster.local/ns/sock-shop-hardened/sa/queue-master",
+            "cluster.local/ns/sock-shop-hardened/sa/orders"
+          ]
+    to:
+    - operation:
+        ports: ["5672", "15672"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: sock-shop-hardened
+spec: {}

@@ -5,7 +5,7 @@ metadata:
   name: carts-db
   labels:
     name: carts-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: carts-db
-        image: mongo
+        image: mongo:5.0.11
         ports:
         - name: mongo
           containerPort: 27017

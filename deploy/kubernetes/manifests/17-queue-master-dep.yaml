@@ -5,7 +5,7 @@ metadata:
   name: queue-master
   labels:
     name: queue-master
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: queue-master
     spec:
+      serviceAccountName: queue-master
       containers:
       - name: queue-master
         image: weaveworksdemos/queue-master:0.3.1
@@ -31,5 +32,14 @@ spec:
             memory: 300Mi
         ports:
         - containerPort: 80
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

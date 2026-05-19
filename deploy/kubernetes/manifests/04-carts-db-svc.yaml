@@ -5,11 +5,14 @@ metadata:
   name: carts-db
   labels:
     name: carts-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 27017
+  - name: mongo
+    port: 27017
     targetPort: 27017
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: carts-db

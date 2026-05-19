@@ -5,7 +5,7 @@ metadata:
   name: catalogue-db
   labels:
     name: catalogue-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -21,9 +21,15 @@ spec:
         image: weaveworksdemos/catalogue-db:0.3.0
         env:
           - name: MYSQL_ROOT_PASSWORD
-            value: fake_password
+            valueFrom:
+              secretKeyRef:
+                name: mysql-credentials
+                key: MYSQL_ROOT_PASSWORD
           - name: MYSQL_DATABASE
-            value: socksdb
+            valueFrom:
+              secretKeyRef:
+                name: mysql-credentials
+                key: MYSQL_DATABASE
         ports:
         - name: mysql
           containerPort: 3306

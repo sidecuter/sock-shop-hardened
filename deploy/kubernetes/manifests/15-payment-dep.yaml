@@ -5,7 +5,7 @@ metadata:
   name: payment
   labels:
     name: payment
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -16,6 +16,7 @@ spec:
       labels:
         name: payment
     spec:
+      serviceAccountName: payment
       containers:
       - name: payment
         image: weaveworksdemos/payment:0.4.3
@@ -49,5 +50,14 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

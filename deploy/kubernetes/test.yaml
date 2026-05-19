@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod
+  namespace: sock-shop-hardened
+spec:
+  containers:
+  - name: test
+    image: alpine:3.19
+    securityContext:
+      privileged: true

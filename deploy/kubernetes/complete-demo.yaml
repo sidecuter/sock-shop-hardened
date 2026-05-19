@@ -2,7 +2,9 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sock-shop
+  name: sock-shop-hardened
+  labels:
+    istio-injection: enabled
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,7 +12,7 @@ metadata:
   name: carts
   labels:
     name: carts
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -21,6 +23,7 @@ spec:
       labels:
         name: carts
     spec:
+      serviceAccountName: carts
       containers:
       - name: carts
         image: weaveworksdemos/carts:0.4.8
@@ -48,10 +51,17 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -63,7 +73,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: carts
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -78,7 +88,7 @@ metadata:
   name: carts-db
   labels:
     name: carts-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -91,7 +101,7 @@ spec:
     spec:
       containers:
       - name: carts-db
-        image: mongo
+        image: mongo:5.0.11
         ports:
         - name: mongo
           containerPort: 27017
@@ -120,12 +130,15 @@ metadata:
   name: carts-db
   labels:
     name: carts-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 27017
+  - name: mongo
+    port: 27017
     targetPort: 27017
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: carts-db
 ---
@@ -135,7 +148,7 @@ metadata:
   name: catalogue
   labels:
     name: catalogue
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -146,6 +159,7 @@ spec:
       labels:
         name: catalogue
     spec:
+      serviceAccountName: catalogue
       containers:
       - name: catalogue
         image: weaveworksdemos/catalogue:0.3.5
@@ -182,6 +196,15 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - mountPath: /run/spire/sockets
+          name: spire-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -193,7 +216,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: catalogue
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -208,7 +231,7 @@ metadata:
   name: catalogue-db
   labels:
     name: catalogue-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -224,9 +247,15 @@ spec:
         image: weaveworksdemos/catalogue-db:0.3.0
         env:
           - name: MYSQL_ROOT_PASSWORD
-            value: fake_password
+            valueFrom:
+              secretKeyRef:
+                name: mysql-credentials
+                key: MYSQL_ROOT_PASSWORD
           - name: MYSQL_DATABASE
-            value: socksdb
+            valueFrom:
+              secretKeyRef:
+                name: mysql-credentials
+                key: MYSQL_DATABASE
         ports:
         - name: mysql
           containerPort: 3306
@@ -239,12 +268,15 @@ metadata:
   name: catalogue-db
   labels:
     name: catalogue-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 3306
+  - name: mysql
+    port: 3306
     targetPort: 3306
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: catalogue-db
 ---
@@ -252,7 +284,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: front-end
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -263,9 +295,10 @@ spec:
       labels:
         name: front-end
     spec:
+      serviceAccountName: front-end
       containers:
       - name: front-end
-        image: weaveworksdemos/front-end:0.3.12
+        image: ghcr.io/sidecuter/front-end:latest
         resources:
           limits:
             cpu: 300m
@@ -291,12 +324,21 @@ spec:
             port: 8079
           initialDelaySeconds: 300
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
         readinessProbe:
           httpGet:
             path: /
             port: 8079
           initialDelaySeconds: 30
           periodSeconds: 3
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -308,13 +350,13 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: front-end
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   type: NodePort
   ports:
   - port: 80
     targetPort: 8079
-    nodePort: 30001
+    nodePort: 30002
   selector:
     name: front-end
 ---
@@ -324,7 +366,7 @@ metadata:
   name: orders
   labels:
     name: orders
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -335,6 +377,7 @@ spec:
       labels:
         name: orders
     spec:
+      serviceAccountName: orders
       containers:
       - name: orders
         image: weaveworksdemos/orders:0.4.7
@@ -362,10 +405,17 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -377,7 +427,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: orders
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -392,7 +442,7 @@ metadata:
   name: orders-db
   labels:
     name: orders-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -405,7 +455,7 @@ spec:
     spec:
       containers:
       - name: orders-db
-        image: mongo
+        image: mongo:5.0.11
         ports:
         - name: mongo
           containerPort: 27017
@@ -434,12 +484,15 @@ metadata:
   name: orders-db
   labels:
     name: orders-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 27017
+  - name: mongo
+    port: 27017
     targetPort: 27017
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: orders-db
 ---
@@ -449,7 +502,7 @@ metadata:
   name: payment
   labels:
     name: payment
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -460,6 +513,7 @@ spec:
       labels:
         name: payment
     spec:
+      serviceAccountName: payment
       containers:
       - name: payment
         image: weaveworksdemos/payment:0.4.3
@@ -493,6 +547,15 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -504,7 +567,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: payment
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -519,7 +582,7 @@ metadata:
   name: queue-master
   labels:
     name: queue-master
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -530,6 +593,7 @@ spec:
       labels:
         name: queue-master
     spec:
+      serviceAccountName: queue-master
       containers:
       - name: queue-master
         image: weaveworksdemos/queue-master:0.3.1
@@ -545,6 +609,15 @@ spec:
             memory: 300Mi
         ports:
         - containerPort: 80
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -556,7 +629,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: queue-master
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -571,7 +644,7 @@ metadata:
   name: rabbitmq
   labels:
     name: rabbitmq
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -619,7 +692,7 @@ metadata:
         prometheus.io/port: '9090'
   labels:
     name: rabbitmq
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -639,7 +712,7 @@ metadata:
   name: session-db
   labels:
     name: session-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -676,12 +749,15 @@ metadata:
   name: session-db
   labels:
     name: session-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 6379
+  - name: redis
+    port: 6379
     targetPort: 6379
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: session-db
 ---
@@ -691,7 +767,7 @@ metadata:
   name: shipping
   labels:
     name: shipping
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -702,6 +778,7 @@ spec:
       labels:
         name: shipping
     spec:
+      serviceAccountName: shipping
       containers:
       - name: shipping
         image: weaveworksdemos/shipping:0.4.8
@@ -731,7 +808,14 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
       volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
         - name: tmp-volume
           emptyDir:
             medium: Memory
@@ -746,7 +830,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: shipping
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -762,7 +846,7 @@ metadata:
   name: user
   labels:
     name: user
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -773,6 +857,7 @@ spec:
       labels:
         name: user
     spec:
+      serviceAccountName: user
       containers:
       - name: user
         image: weaveworksdemos/user:0.4.7
@@ -809,6 +894,15 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
+        volumeMounts:
+        - name: spire-workload-api
+          mountPath: /spiffe-workload-api
+          readOnly: true
+      volumes:
+        - name: spire-workload-api
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -820,7 +914,7 @@ metadata:
         prometheus.io/scrape: 'true'
   labels:
     name: user
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
@@ -836,7 +930,7 @@ metadata:
   name: user-db
   labels:
     name: user-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   replicas: 1
   selector:
@@ -879,12 +973,506 @@ metadata:
   name: user-db
   labels:
     name: user-db
-  namespace: sock-shop
+  namespace: sock-shop-hardened
 spec:
   ports:
     # the port that this service should serve on
-  - port: 27017
+  - name: mongo
+    port: 27017
     targetPort: 27017
+    protocol: TCP
+    appProtocol: tcp
   selector:
     name: user-db
 
+---
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: vault-backend
+spec:
+  provider:
+    vault:
+      server: "http://vault.vault.svc.cluster.local:8200"
+      path: "secret"
+      version: "v2"
+      auth:
+        tokenSecretRef:
+          name: "vault-token"
+          key: "token"
+          namespace: "external-secrets"
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: mysql-credentials
+  namespace: sock-shop-hardened
+spec:
+  refreshInterval: 5m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: mysql-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: MYSQL_ROOT_PASSWORD
+      remoteRef:
+        key: sock-shop-hardened/mysql
+        property: root_password
+    - secretKey: MYSQL_DATABASE
+      remoteRef:
+        key: sock-shop-hardened/mysql
+        property: database
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: front-end
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carts
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: catalogue
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orders
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: user
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payment
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shipping
+  namespace: sock-shop-hardened
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: queue-master
+  namespace: sock-shop-hardened
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: sock-shop-hardened
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: frontend-permissive
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: front-end
+  mtls:
+    mode: PERMISSIVE
+  
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-external-to-frontend
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: front-end
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+        paths: ["/*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-catalogue
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: catalogue
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+          "/catalogue", "/catalogue*",
+          "/catalogue/", "/catalogue/*",
+          "/products*", "/products/*",
+          "/health", "/health/*"
+        ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-user
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "OPTIONS"]
+        paths: ["/customers*", "/customer*", "/addresses*", "/address*", "/cards*", "/card*", "/health*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-user
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: [
+            "/users", "/users/", "/users/*",
+            "/user", "/user/", "/user/*",
+            "/addresses", "/addresses/", "/addresses/*",
+            "/address", "/address/", "/address/*",
+            "/cards", "/cards/", "/cards/*",
+            "/card", "/card/", "/card/*",
+            "/login", "/login/",
+            "/register", "/register/",
+            "/health", "/health/*",
+            "/customers*", "/customer*",
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-carts
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        paths: [
+            "/carts", "/carts/", "/carts/*",
+            "/cart", "/cart/", "/cart/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-orders
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: orders
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "OPTIONS"]
+        paths: [
+            "/orders", "/orders/", "/orders/*",
+            "/order", "/order/", "/order/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-payment
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: payment
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+            "/payment", "/payment*", "/payment/",
+            "/payment/*", "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-shipping
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: shipping
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "OPTIONS"]
+        paths: [
+            "/shipping", "/shipping/", "/shipping/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-carts
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "OPTIONS"]
+        paths: [
+            "/carts", "/carts/", "/carts/*",
+            "/cart", "/cart/", "/cart/*",
+            "/health", "/health/*"
+          ]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-catalogue-to-catalogue-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: catalogue-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/catalogue"]
+    to:
+    - operation:
+        ports: ["3306"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-carts-to-carts-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: carts-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/carts"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-user-to-user-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: user-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/user"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-orders-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: orders-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/orders"]
+    to:
+    - operation:
+        ports: ["27017"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-front-end-to-session-db
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: session-db
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/sock-shop-hardened/sa/front-end"]
+    to:
+    - operation:
+        ports: ["6379"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-queue-master-to-rabbitmq
+  namespace: sock-shop-hardened
+spec:
+  selector:
+    matchLabels:
+      name: rabbitmq
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: [
+            "cluster.local/ns/sock-shop-hardened/sa/queue-master",
+            "cluster.local/ns/sock-shop-hardened/sa/orders"
+          ]
+    to:
+    - operation:
+        ports: ["5672", "15672"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all
+  namespace: sock-shop-hardened
+spec: {}
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-non-root-sockshop
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+  - name: check-runAsNonRoot
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [sock-shop-hardened]
+    exclude:
+      any:
+      - resources:
+          names:
+            - "carts-db-*"
+            - "catalogue-db-*"
+            - "orders-db-*"
+            - "user-db-*"
+            - "session-db-*"
+            - "rabbitmq-*"
+            - "queue-master-*"
+    validate:
+      message: "Containers must run as non-root"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              runAsNonRoot: true
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs-sockshop
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+  - name: check-readonly-rootfs
+    match:
+      any:
+      - resources:
+          kinds: [Pod]
+          namespaces: [sock-shop-hardened]
+    exclude:
+      any:
+      - resources:
+          names:
+            - "catalogue-db-*"
+            - "rabbitmq-*"
+            - "queue-master-*"
+    validate:
+      message: "Root filesystem must be read-only"
+      pattern:
+        spec:
+          containers:
+          - securityContext:
+              readOnlyRootFilesystem: true
