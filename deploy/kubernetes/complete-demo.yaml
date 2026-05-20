@@ -51,17 +51,10 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -196,15 +189,6 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
-        volumeMounts:
-        - mountPath: /run/spire/sockets
-          name: spire-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -326,21 +310,12 @@ spec:
             port: 8079
           initialDelaySeconds: 300
           periodSeconds: 3
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
         readinessProbe:
           httpGet:
             path: /
             port: 8079
           initialDelaySeconds: 30
           periodSeconds: 3
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -407,17 +382,10 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -549,15 +517,6 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -611,15 +570,6 @@ spec:
             memory: 300Mi
         ports:
         - containerPort: 80
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -810,14 +760,7 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
       volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
         - name: tmp-volume
           emptyDir:
             medium: Memory
@@ -896,15 +839,6 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---

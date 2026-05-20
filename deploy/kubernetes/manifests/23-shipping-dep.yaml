@@ -46,14 +46,7 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
       volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
         - name: tmp-volume
           emptyDir:
             medium: Memory

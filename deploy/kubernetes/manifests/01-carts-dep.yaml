@@ -44,16 +44,9 @@ spec:
         volumeMounts:
         - mountPath: /tmp
           name: tmp-volume
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
       volumes:
         - name: tmp-volume
           emptyDir:
             medium: Memory
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

@@ -53,14 +53,5 @@ spec:
             port: 80
           initialDelaySeconds: 180
           periodSeconds: 3
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

@@ -43,20 +43,11 @@ spec:
             port: 8079
           initialDelaySeconds: 300
           periodSeconds: 3
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
         readinessProbe:
           httpGet:
             path: /
             port: 8079
           initialDelaySeconds: 30
           periodSeconds: 3
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux

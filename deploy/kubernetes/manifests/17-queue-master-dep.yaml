@@ -32,14 +32,5 @@ spec:
             memory: 300Mi
         ports:
         - containerPort: 80
-        volumeMounts:
-        - name: spire-workload-api
-          mountPath: /spiffe-workload-api
-          readOnly: true
-      volumes:
-        - name: spire-workload-api
-          hostPath:
-            path: /run/spire/sockets
-            type: DirectoryOrCreate
       nodeSelector:
         beta.kubernetes.io/os: linux
