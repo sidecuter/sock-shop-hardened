@@ -246,19 +246,21 @@ spec:
       - name: catalogue-db
         image: weaveworksdemos/catalogue-db:0.3.0
         env:
-          - name: MYSQL_ROOT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: mysql-credentials
-                key: MYSQL_ROOT_PASSWORD
-          - name: MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                name: mysql-credentials
-                key: MYSQL_DATABASE
+          - name: MYSQL_ROOT_PASSWORD_FILE
+            value: /etc/secrets/MYSQL_ROOT_PASSWORD
+          - name: MYSQL_DATABASE_FILE
+            value: /etc/secrets/MYSQL_DATABASE
+        volumeMounts:
+          - name: db-secrets
+            mountPath: /etc/secrets
+            readOnly: true
         ports:
         - name: mysql
           containerPort: 3306
+      volumes:
+        - name: db-secrets
+          secret:
+            secretName: mysql-credentials
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
